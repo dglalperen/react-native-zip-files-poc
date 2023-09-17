@@ -11,23 +11,41 @@ import {
 } from "react-native";
 import * as FileSystem from "expo-file-system";
 import { zip } from "react-native-zip-archive";
+import * as DocumentPicker from "expo-document-picker";
 
 export default function App() {
   const [zipFiles, setZipFiles] = useState([]);
 
-  const zipSampleFiles = async () => {
-    const directory = `${FileSystem.documentDirectory}sampleDirectory/`;
-    const filePath = `${directory}sampleFile.txt`;
-    const zipPath = `${FileSystem.documentDirectory}sample.zip`;
+  const pickAndZipFile = async () => {
+    // First, pick a file using the document picker
+    const result = await DocumentPicker.getDocumentAsync({});
+    if (!result.canceled) {
+      // Get the first asset
+      const firstAsset = result.assets[0];
+      const pickedFilePath = firstAsset.uri;
 
-    try {
+      // Define paths and directories
+      const directory = `${FileSystem.documentDirectory}rn-zip-poc/`;
+      const zipPath = `${FileSystem.documentDirectory}${firstAsset.name}.zip`;
+
+      // Create a directory for zipping
       await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-      await FileSystem.writeAsStringAsync(filePath, "This is sample text.");
-      await zip(directory, zipPath);
-      console.log(`Zipped file is at: ${zipPath}`);
-      await listZipFiles();
-    } catch (error) {
-      console.error("An error occurred:", error);
+
+      // Copy the picked file to the new directory
+      const newFilePath = `${directory}${firstAsset.name}`;
+      await FileSystem.copyAsync({
+        from: pickedFilePath,
+        to: newFilePath,
+      });
+
+      // Zip the file
+      try {
+        await zip(directory, zipPath);
+        console.log(`Zipped file is at: ${zipPath}`);
+        await listZipFiles();
+      } catch (error) {
+        console.error("An error occurred:", error);
+      }
     }
   };
 
@@ -60,8 +78,8 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text>Press the button to create and zip a sample file!</Text>
-      <Button title="Zip Sample File" onPress={zipSampleFiles} />
+      <Text>Press the button to pick and zip a file!</Text>
+      <Button title="Pick and Zip File" onPress={pickAndZipFile} />
 
       <Text>List of Zip Files:</Text>
       <FlatList
